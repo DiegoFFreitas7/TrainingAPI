@@ -4,19 +4,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"time"
 
-	"cloud.google.com/go/storage"
 	vision "cloud.google.com/go/vision/apiv1"
 )
 
 const maxMemory = 2 * 1024 * 1024 // 2 megabytes.
 
-// ReadDoc is an HTTP Cloud Function with a request parameter.
-func uploadImage(w http.ResponseWriter, r *http.Request) {
+func getText(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseMultipartForm(maxMemory); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
@@ -33,27 +29,8 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 
 	for _, headers := range r.MultipartForm.File {
 		for _, h := range headers {
-			file, _ := h.Open()
+
 			ctx := context.Background()
-			scClient, err := storage.NewClient(ctx)
-			if err != nil {
-				log.Fatalf("Failed to create client: %v", err)
-			}
-
-			t := time.Now()
-
-			bucket := "alvardevlp07.appspot.com"
-			fileName := t.Format("20060102150405") + "-" + h.Filename
-
-			wc := scClient.Bucket(bucket).Object(fileName).NewWriter(ctx)
-			if _, err = io.Copy(wc, file); err != nil {
-				fmt.Println("Error copying")
-			}
-			if err := wc.Close(); err != nil {
-				fmt.Println("Conexion closed")
-				fmt.Println(err)
-			}
-
 			client, err := vision.NewImageAnnotatorClient(ctx)
 
 			if err != nil {
@@ -61,7 +38,9 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 			}
 			defer client.Close()
 
-			image := vision.NewImageFromURI("gs://alvardevlp07.appspot.com/" + fileName)
+			file, _ := h.Open()
+
+			image, err := vision.NewImageFromReader(file)
 			annotations, err := client.DetectTexts(ctx, image, nil, 10)
 
 			if err != nil {
@@ -79,6 +58,6 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/upload", uploadImage)
+	http.HandleFunc("/upload", getText)
 	http.ListenAndServe(":8080", nil)
 }
