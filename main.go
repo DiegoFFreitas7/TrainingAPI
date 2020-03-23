@@ -3,12 +3,17 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 
 	vision "cloud.google.com/go/vision/apiv1"
 )
+
+// Response definiation for response API
+type Response struct {
+	Message string `json:"message"`
+}
 
 const maxMemory = 2 * 1024 * 1024 // 2 megabytes.
 
@@ -47,12 +52,23 @@ func getText(w http.ResponseWriter, r *http.Request) {
 				log.Fatalf("Failed to detect text: %v", err)
 			}
 
-			if len(annotations) == 0 {
-				fmt.Fprintf(w, "No text found.")
-			} else {
-				fmt.Fprintf(w, annotations[0].Description)
+			message := "No text found."
+
+			if len(annotations) != 0 {
+				message = annotations[0].Description
 			}
 
+			res := Response{}
+			res.Message = message
+
+			resJSON, err := json.Marshal(res)
+			if err != nil {
+				log.Fatalf("Failed to parse json: %v", err)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(resJSON)
 		}
 	}
 }
