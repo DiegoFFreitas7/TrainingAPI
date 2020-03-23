@@ -1,14 +1,14 @@
 steps:
 # Download the credential file from storage
 - name: 'gcr.io/cloud-builders/gsutil'
-  args: ['cp', 'gs://$PROJECT_ID-credentials/alvardev-credential.json.encrypted', 'credentials/alvardev-credential.json.encrypted']
+  args: ['cp', 'gs://$PROJECT_ID-credentials/alvardev-credential.json.encrypted', 'alvardev-credential.json.encrypted']
 # Decrypt the credential file 
 - name: "gcr.io/cloud-builders/gcloud"
   args:
   - kms
   - decrypt
-  - --ciphertext-file=credentials/alvardev-credential.json.encrypted
-  - --plaintext-file=credentials/alvardev.json
+  - --ciphertext-file=alvardev-credential.json.encrypted
+  - --plaintext-file=alvardev.json
   - --location=global
   - --keyring=alvardev-keyring
   - --key=alvardev-key
