@@ -6,16 +6,46 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"fmt"
+	"cloud.google.com/go/translate"
+	"golang.org/x/text/language"
 
 	vision "cloud.google.com/go/vision/apiv1"
 )
 
 // Response definiation for response API
 type Response struct {
-	Message string `json:"message"`
+	ORIGINAL string `json:"original_message"`
+	ENGLISH string `json:"english_message"`
 }
 
 const maxMemory = 2 * 1024 * 1024 // 2 megabytes.
+
+// Function to translater 
+func translateText(targetLanguage, text string) (string, error) {
+	// text := "The Go Gopher is cute"
+	ctx := context.Background()
+
+	lang, err := language.Parse(targetLanguage)
+	if err != nil {
+			return "", fmt.Errorf("language.Parse: %v", err)
+	}
+
+	client, err := translate.NewClient(ctx)
+	if err != nil {
+			return "", err
+	}
+	defer client.Close()
+
+	resp, err := client.Translate(ctx, []string{text}, lang, nil)
+	if err != nil {
+			return "", fmt.Errorf("Translate: %v", err)
+	}
+	if len(resp) == 0 {
+			return "", fmt.Errorf("Translate returned empty response to text: %s", text)
+	}
+	return resp[0].Text, nil
+}
 
 func getText(w http.ResponseWriter, r *http.Request) {
 
@@ -53,13 +83,17 @@ func getText(w http.ResponseWriter, r *http.Request) {
 			}
 
 			message := "No text found."
+			message_translate := "Untranslated text"
 
 			if len(annotations) != 0 {
 				message = annotations[0].Description
 			}
 
+			message_translate, _ = translateText("en", message)
+
 			res := Response{}
-			res.Message = message
+			res.ORIGINAL = message
+			res.ENGLISH = message_translate
 
 			resJSON, err := json.Marshal(res)
 			if err != nil {
